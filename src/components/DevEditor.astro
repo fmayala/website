@@ -1,0 +1,596 @@
+---
+interface Props {
+  filePath: string;
+  content: string;
+}
+
+const { filePath, content } = Astro.props;
+const isDev = import.meta.env.DEV;
+
+// Extract frontmatter and body
+const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n\n?([\s\S]*)$/);
+const frontmatter = frontmatterMatch?.[1] || '';
+const body = frontmatterMatch?.[2] || content;
+
+// Parse frontmatter fields
+const getField = (name: string) => {
+  const match = frontmatter.match(new RegExp(`^${name}:\\s*["']?(.*)["']?$`, 'm'));
+  return match?.[1]?.replace(/^["']|["']$/g, '') || '';
+};
+
+const description = getField('description');
+const tagsMatch = frontmatter.match(/^tags:\n((?:\s+-\s+.+\n?)+)/m);
+const tags = tagsMatch?.[1]?.match(/^\s+-\s+(.+)$/gm)?.map(t => t.replace(/^\s+-\s+/, '')) || [];
+---
+
+{isDev && (
+  <div
+    class="dev-editor"
+    data-file-path={filePath}
+    data-frontmatter={frontmatter}
+    data-original-body={body}
+  >
+    <!-- Floating toolbar on selection -->
+    <div class="dev-toolbar" hidden>
+      <button type="button" data-command="bold" title="Bold (Ctrl+B)">
+        <strong>B</strong>
+      </button>
+      <button type="button" data-command="italic" title="Italic (Ctrl+I)">
+        <em>I</em>
+      </button>
+      <button type="button" data-command="strikethrough" title="Strikethrough">
+        <s>S</s>
+      </button>
+      <span class="dev-toolbar-divider"></span>
+      <button type="button" data-command="h2" title="Heading 2">H2</button>
+      <button type="button" data-command="h3" title="Heading 3">H3</button>
+      <span class="dev-toolbar-divider"></span>
+      <button type="button" data-command="link" title="Link (Ctrl+K)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+        </svg>
+      </button>
+      <button type="button" data-command="code" title="Inline code">
+        <code>&lt;/&gt;</code>
+      </button>
+    </div>
+
+    <!-- Bottom action buttons -->
+    <div class="dev-actions">
+      <button class="dev-save-btn" type="button" title="Save (Ctrl+S)">
+        Save
+      </button>
+      <button class="dev-meta-btn" type="button" title="Edit post metadata">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Save status indicator -->
+    <span class="dev-status" hidden></span>
+
+    <!-- Metadata popup modal -->
+    <div class="dev-meta-modal" hidden>
+      <div class="dev-meta-overlay"></div>
+      <div class="dev-meta-panel">
+        <div class="dev-meta-header">
+          <h3>Post Settings</h3>
+          <button class="dev-meta-close" type="button">&times;</button>
+        </div>
+        <div class="dev-meta-content">
+          <textarea class="dev-meta-yaml" rows="12" spellcheck="false">---
+{frontmatter}
+---</textarea>
+        </div>
+        <div class="dev-meta-footer">
+          <button class="dev-meta-save" type="button">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+<style>
+  .dev-editor {
+    position: relative;
+  }
+
+  /* Floating format toolbar */
+  .dev-toolbar {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    transform: translateX(-50%);
+  }
+
+  .dev-toolbar[hidden] {
+    display: none;
+  }
+
+  .dev-toolbar button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: all 0.1s ease;
+  }
+
+  .dev-toolbar button:hover {
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .dev-toolbar-divider {
+    width: 1px;
+    height: 20px;
+    margin: 0 4px;
+    background: var(--border);
+  }
+
+  /* Bottom action buttons */
+  .dev-actions {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    display: flex;
+    gap: 0.5rem;
+    z-index: 100;
+  }
+
+  .dev-save-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .dev-save-btn:hover {
+    color: var(--text);
+    border-color: var(--accent);
+  }
+
+  .dev-meta-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .dev-meta-btn:hover {
+    color: var(--text);
+    border-color: var(--accent);
+    transform: rotate(45deg);
+  }
+
+  /* Save status */
+  .dev-status {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 8rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    z-index: 100;
+    animation: fadeIn 0.15s ease;
+  }
+
+  .dev-status[hidden] {
+    display: none;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Metadata modal */
+  .dev-meta-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+  }
+
+  .dev-meta-modal[hidden] {
+    display: none;
+  }
+
+  .dev-meta-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+  }
+
+  .dev-meta-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(480px, 90vw);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+
+  .dev-meta-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dev-meta-header h3 {
+    font-size: 1rem;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .dev-meta-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+
+  .dev-meta-close:hover {
+    color: var(--text);
+  }
+
+  .dev-meta-content {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .dev-meta-yaml {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    resize: vertical;
+    tab-size: 2;
+  }
+
+  .dev-meta-yaml:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .dev-meta-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .dev-meta-save {
+    padding: 0.5rem 1.25rem;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  .dev-meta-save:hover {
+    opacity: 0.9;
+  }
+
+  /* Editable content styles - always editable, no indicators */
+  :global(.post-content[contenteditable="true"]),
+  :global(.post-header h1[contenteditable="true"]) {
+    outline: none;
+    cursor: text;
+  }
+
+  :global(.post-content[contenteditable="true"]:focus),
+  :global(.post-header h1[contenteditable="true"]:focus) {
+    outline: none;
+  }
+
+  :global(.post-content[contenteditable="true"] *::selection),
+  :global(.post-header h1[contenteditable="true"]::selection) {
+    background: rgba(138, 138, 138, 0.3);
+  }
+</style>
+
+<script>
+  import TurndownService from 'turndown';
+
+  function setupInlineEditor() {
+    const editor = document.querySelector('.dev-editor') as HTMLElement;
+    if (!editor) return;
+
+    const postContent = document.querySelector('.post-content') as HTMLElement;
+    const postHeader = document.querySelector('.post-header') as HTMLElement;
+    const postTitle = postHeader?.querySelector('h1') as HTMLElement;
+    if (!postContent) return;
+
+    const toolbar = editor.querySelector('.dev-toolbar') as HTMLElement;
+    const saveBtn = editor.querySelector('.dev-save-btn') as HTMLButtonElement;
+    const metaBtn = editor.querySelector('.dev-meta-btn') as HTMLButtonElement;
+    const metaModal = editor.querySelector('.dev-meta-modal') as HTMLElement;
+    const metaOverlay = editor.querySelector('.dev-meta-overlay') as HTMLElement;
+    const metaClose = editor.querySelector('.dev-meta-close') as HTMLButtonElement;
+    const metaSave = editor.querySelector('.dev-meta-save') as HTMLButtonElement;
+    const yamlInput = editor.querySelector('.dev-meta-yaml') as HTMLTextAreaElement;
+    const status = editor.querySelector('.dev-status') as HTMLElement;
+
+    const filePath = editor.dataset.filePath || '';
+    let currentFrontmatter = editor.dataset.frontmatter || '';
+    const originalTitle = postTitle?.textContent || '';
+
+    let isSaving = false;
+
+    // Turndown for HTML to Markdown
+    const turndown = new TurndownService({
+      headingStyle: 'atx',
+      codeBlockStyle: 'fenced',
+      emDelimiter: '*',
+    });
+
+    turndown.addRule('strikethrough', {
+      filter: ['del', 's', 'strike'],
+      replacement: (content) => `~~${content}~~`
+    });
+
+    // Make content always editable
+    postContent.contentEditable = 'true';
+    if (postTitle) {
+      postTitle.contentEditable = 'true';
+    }
+
+    function showStatus(text: string, duration = 2000) {
+      status.textContent = text;
+      status.hidden = false;
+      if (duration > 0) {
+        setTimeout(() => {
+          status.hidden = true;
+        }, duration);
+      }
+    }
+
+    function showToolbar() {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed) {
+        hideToolbar();
+        return;
+      }
+
+      // Check if selection is within editable areas
+      const anchorNode = selection.anchorNode;
+      const isInContent = postContent.contains(anchorNode);
+      const isInTitle = postTitle?.contains(anchorNode);
+      if (!isInContent && !isInTitle) {
+        hideToolbar();
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+
+      toolbar.hidden = false;
+      toolbar.style.left = `${rect.left + rect.width / 2}px`;
+      toolbar.style.top = `${rect.top - 45 + window.scrollY}px`;
+    }
+
+    function hideToolbar() {
+      toolbar.hidden = true;
+    }
+
+    function execCommand(command: string) {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed) return;
+
+      switch (command) {
+        case 'bold':
+          document.execCommand('bold');
+          break;
+        case 'italic':
+          document.execCommand('italic');
+          break;
+        case 'strikethrough':
+          document.execCommand('strikeThrough');
+          break;
+        case 'h2':
+          document.execCommand('formatBlock', false, 'h2');
+          break;
+        case 'h3':
+          document.execCommand('formatBlock', false, 'h3');
+          break;
+        case 'link':
+          const url = prompt('Enter URL:');
+          if (url) {
+            document.execCommand('createLink', false, url);
+          }
+          break;
+        case 'code':
+          const selectedText = selection.toString();
+          const codeEl = document.createElement('code');
+          codeEl.textContent = selectedText;
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(codeEl);
+          break;
+      }
+    }
+
+    async function saveContent() {
+      if (isSaving) return;
+      isSaving = true;
+
+      showStatus('Saving...', 0);
+
+      try {
+        const markdown = turndown.turndown(postContent.innerHTML);
+
+        // Update title in frontmatter if changed
+        let updatedFrontmatter = currentFrontmatter;
+        const newTitle = postTitle?.textContent?.trim() || originalTitle;
+        if (newTitle !== originalTitle) {
+          const escapedTitle = newTitle.includes(':') || newTitle.includes('#') || newTitle.includes('"')
+            ? `"${newTitle.replace(/"/g, '\\"')}"`
+            : newTitle;
+          updatedFrontmatter = updatedFrontmatter.replace(
+            /^title:\s*["']?.*["']?$/m,
+            `title: ${escapedTitle}`
+          );
+        }
+
+        const fullContent = `---\n${updatedFrontmatter}\n---\n\n${markdown}`;
+
+        const res = await fetch('/__dev-editor/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath, content: fullContent }),
+        });
+
+        if (res.ok) {
+          showStatus('Saved');
+          currentFrontmatter = updatedFrontmatter;
+        } else {
+          showStatus('Save failed', 3000);
+        }
+      } catch (err) {
+        showStatus('Save failed', 3000);
+        console.error('Save failed:', err);
+      } finally {
+        isSaving = false;
+      }
+    }
+
+    async function saveMetadata() {
+      // Extract frontmatter from the raw YAML (strip the --- delimiters)
+      const rawYaml = yamlInput.value.trim();
+      const match = rawYaml.match(/^---\n([\s\S]*?)\n---$/);
+      const newFrontmatter = match ? match[1].trim() : rawYaml.replace(/^---\n?/, '').replace(/\n?---$/, '').trim();
+
+      currentFrontmatter = newFrontmatter;
+      closeMetaModal();
+      await saveContent();
+    }
+
+    function openMetaModal() {
+      // Sync textarea with current frontmatter state
+      yamlInput.value = `---\n${currentFrontmatter}\n---`;
+      metaModal.hidden = false;
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeMetaModal() {
+      metaModal.hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    // Event listeners
+    document.addEventListener('selectionchange', () => {
+      requestAnimationFrame(showToolbar);
+    });
+
+    postTitle?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        postContent.focus();
+      }
+    });
+
+    toolbar.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const command = (btn as HTMLElement).dataset.command;
+        if (command) {
+          execCommand(command);
+        }
+      });
+    });
+
+    postContent.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        saveContent();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault();
+        execCommand('bold');
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+        e.preventDefault();
+        execCommand('italic');
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        execCommand('link');
+      }
+    });
+
+    saveBtn.addEventListener('click', saveContent);
+    metaBtn.addEventListener('click', openMetaModal);
+    metaOverlay.addEventListener('click', closeMetaModal);
+    metaClose.addEventListener('click', closeMetaModal);
+    metaSave.addEventListener('click', saveMetadata);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !metaModal.hidden) {
+        closeMetaModal();
+      }
+    });
+  }
+
+  setupInlineEditor();
+  document.addEventListener('astro:after-swap', setupInlineEditor);
+</script>

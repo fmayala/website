@@ -1,0 +1,140 @@
+---
+import DevModal from './DevModal.astro';
+
+const isDev = import.meta.env.DEV;
+---
+
+{isDev && (
+  <DevModal id="add-project-modal" title="New Project">
+    <form id="add-project-form" class="dev-form">
+      <div class="dev-field">
+        <label for="project-title">Title</label>
+        <input type="text" id="project-title" name="title" required placeholder="My Awesome Project" />
+      </div>
+
+      <div class="dev-field">
+        <label for="project-description">Description</label>
+        <textarea id="project-description" name="description" required rows="2" placeholder="A brief description of the project"></textarea>
+      </div>
+
+      <div class="dev-field">
+        <label for="project-url">Live URL (optional)</label>
+        <input type="url" id="project-url" name="url" placeholder="https://myproject.com" />
+      </div>
+
+      <div class="dev-field">
+        <label for="project-repo">Repository (optional)</label>
+        <input type="url" id="project-repo" name="repo" placeholder="https://github.com/username/repo" />
+      </div>
+
+      <div class="dev-field">
+        <label for="project-tech">Tech Stack</label>
+        <input type="text" id="project-tech" name="tech" placeholder="React, TypeScript, Node.js" />
+        <span class="dev-hint">Comma-separated</span>
+      </div>
+
+      <div class="dev-field">
+        <label class="checkbox-label">
+          <input type="checkbox" id="project-featured" name="featured" />
+          Featured project
+        </label>
+        <span class="dev-hint">Featured projects appear first</span>
+      </div>
+
+      <div id="project-error" class="dev-error" hidden></div>
+    </form>
+
+    <Fragment slot="footer">
+      <button type="button" class="dev-btn dev-btn-secondary" data-close>Cancel</button>
+      <button type="submit" form="add-project-form" class="dev-btn" id="project-submit">Add Project</button>
+    </Fragment>
+  </DevModal>
+)}
+
+<style>
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
+
+  .checkbox-label input {
+    width: auto;
+  }
+</style>
+
+<script>
+  function setupAddProject() {
+    const form = document.getElementById('add-project-form') as HTMLFormElement;
+    const errorEl = document.getElementById('project-error') as HTMLElement;
+    const submitBtn = document.getElementById('project-submit') as HTMLButtonElement;
+
+    if (!form) return;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorEl.hidden = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Adding...';
+
+      try {
+        const formData = new FormData(form);
+        const title = formData.get('title') as string;
+        const description = formData.get('description') as string;
+        const url = formData.get('url') as string;
+        const repo = formData.get('repo') as string;
+        const techStr = formData.get('tech') as string;
+        const featured = formData.get('featured') === 'on';
+
+        const tech = techStr
+          ? techStr.split(',').map(t => t.trim()).filter(Boolean)
+          : [];
+
+        // Generate slug from title
+        const slug = title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '');
+
+        const frontmatter: Record<string, unknown> = {
+          title,
+          description,
+          tech,
+          featured,
+        };
+
+        if (url) frontmatter.url = url;
+        if (repo) frontmatter.repo = repo;
+
+        const response = await fetch('/__dev-editor/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            collection: 'projects',
+            slug,
+            frontmatter,
+            body: '',
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to add project');
+        }
+
+        // Redirect to projects page
+        window.location.href = '/projects';
+      } catch (err) {
+        errorEl.textContent = err instanceof Error ? err.message : 'An error occurred';
+        errorEl.hidden = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add Project';
+      }
+    });
+  }
+
+  setupAddProject();
+  document.addEventListener('astro:after-swap', setupAddProject);
+</script>

@@ -1,0 +1,182 @@
+---
+// Aurora shader with procedural noise
+---
+
+<canvas id="bg-shader" aria-hidden="true"></canvas>
+
+<style>
+  #bg-shader {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  import * as THREE from 'three';
+
+  function initShader() {
+    const canvas = document.getElementById('bg-shader') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isDark = document.documentElement.classList.contains('dark');
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: false,
+      alpha: false
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const vertexShader = `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = vec4(position, 1.0);
+      }
+    `;
+
+    // Subtle ambient glow shader - keeps the clean neutral feel
+    const fragmentShader = `
+      uniform float iTime;
+      uniform vec2 iResolution;
+      uniform vec3 uBgColor;
+      uniform float uIsDark;
+
+      varying vec2 vUv;
+
+      // Simplex 2D noise
+      vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
+
+      float snoise(vec2 v) {
+        const vec4 C = vec4(0.211324865405187, 0.366025403784439,
+                 -0.577350269189626, 0.024390243902439);
+        vec2 i  = floor(v + dot(v, C.yy));
+        vec2 x0 = v - i + dot(i, C.xx);
+        vec2 i1;
+        i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+        vec4 x12 = x0.xyxy + C.xxzz;
+        x12.xy -= i1;
+        i = mod(i, 289.0);
+        vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0))
+          + i.x + vec3(0.0, i1.x, 1.0));
+        vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
+          dot(x12.zw,x12.zw)), 0.0);
+        m = m*m;
+        m = m*m;
+        vec3 x = 2.0 * fract(p * C.www) - 1.0;
+        vec3 h = abs(x) - 0.5;
+        vec3 ox = floor(x + 0.5);
+        vec3 a0 = x - ox;
+        m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+        vec3 g;
+        g.x = a0.x * x0.x + h.x * x0.y;
+        g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+        return 130.0 * dot(m, g);
+      }
+
+      void main() {
+        vec2 uv = vUv;
+
+        // Very slow, gentle time
+        float t = iTime * 0.08;
+
+        // Smaller scale noise - zoomed out, not zoomed in
+        float n1 = snoise(uv * 0.8 + vec2(t * 0.1, t * 0.05)) * 0.5 + 0.5;
+        float n2 = snoise(uv * 0.6 + vec2(-t * 0.08, t * 0.12)) * 0.5 + 0.5;
+
+        // Gentle flowing gradient
+        float flow = n1 * 0.6 + n2 * 0.4;
+
+        // Very subtle warm tint - barely visible
+        vec3 warmTint = vec3(0.12, 0.08, 0.04); // Subtle warm offset
+
+        // Even more subtle in dark mode to preserve the clean #1a1a1a feel
+        float intensity = uIsDark > 0.5 ? 0.03 : 0.05;
+
+        // Apply as a very gentle color shift, not a bright overlay
+        vec3 colorShift = warmTint * flow * intensity;
+
+        // Blend with background - the background dominates
+        vec3 finalColor = uBgColor + colorShift;
+
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+    `;
+
+    const uniforms = {
+      iTime: { value: 0 },
+      iResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+      uBgColor: { value: isDark ? new THREE.Color('#1a1a1a') : new THREE.Color('#f5f3f0') },
+      uIsDark: { value: isDark ? 1.0 : 0.0 },
+    };
+
+    const material = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader,
+      fragmentShader,
+    });
+
+    const geometry = new THREE.PlaneGeometry(2, 2);
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+
+    let animationId: number;
+    const timeSpeed = prefersReducedMotion ? 0.1 : 1;
+
+    function animate() {
+      animationId = requestAnimationFrame(animate);
+      uniforms.iTime.value += 0.016 * timeSpeed;
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    function handleResize() {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      uniforms.iResolution.value.set(window.innerWidth, window.innerHeight);
+    }
+
+    window.addEventListener('resize', handleResize);
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          const isDarkNow = document.documentElement.classList.contains('dark');
+          uniforms.uBgColor.value = isDarkNow ? new THREE.Color('#1a1a1a') : new THREE.Color('#f5f3f0');
+          uniforms.uIsDark.value = isDarkNow ? 1.0 : 0.0;
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, { attributes: true });
+
+    function cleanup() {
+      cancelAnimationFrame(animationId);
+      window.removeEventListener('resize', handleResize);
+      observer.disconnect();
+      geometry.dispose();
+      material.dispose();
+      renderer.dispose();
+    }
+
+    (canvas as any).__cleanup = cleanup;
+  }
+
+  function init() {
+    const canvas = document.getElementById('bg-shader') as HTMLCanvasElement;
+    if (canvas && (canvas as any).__cleanup) {
+      (canvas as any).__cleanup();
+    }
+    initShader();
+  }
+
+  init();
+  document.addEventListener('astro:after-swap', init);
+</script>

@@ -1,0 +1,90 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ProjectCard from '../../components/ProjectCard.astro';
+import DevAddProject from '../../components/dev/DevAddProject.astro';
+import { getCollection } from 'astro:content';
+
+const isDev = import.meta.env.DEV;
+
+// Get all projects, featured first
+const allProjects = await getCollection('projects');
+const projects = allProjects.sort((a, b) => {
+  // Featured projects first
+  if (a.data.featured && !b.data.featured) return -1;
+  if (!a.data.featured && b.data.featured) return 1;
+  return 0;
+});
+---
+
+<BaseLayout
+  title="projects"
+  description="things i've built or worked on"
+>
+  <section class="page">
+    <div class="page-header">
+      <h1>projects</h1>
+      {isDev && (
+        <button class="dev-add-btn" onclick="openDevModal('add-project-modal')" title="New Project">+</button>
+      )}
+    </div>
+    <p class="text-muted page-desc">things I've built or worked on</p>
+
+    <div class="projects-container">
+    {projects.length > 0 ? (
+      <div class="projects">
+        {projects.map(project => (
+          <ProjectCard
+            title={project.data.title}
+            description={project.data.description}
+            url={project.data.url}
+            repo={project.data.repo}
+            tech={project.data.tech}
+          />
+        ))}
+      </div>
+    ) : (
+      <p class="text-muted">No projects yet.</p>
+    )}
+    </div>
+  </section>
+
+  {isDev && <DevAddProject />}
+</BaseLayout>
+
+<style>
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+  }
+
+  .page-desc {
+    margin-bottom: var(--space-lg);
+  }
+
+  .projects-container {
+    margin-top: var(--space-md);
+  }
+
+  .dev-add-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1.25rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+
+  .dev-add-btn:hover {
+    border-color: var(--text);
+    color: var(--text);
+    background: var(--bg-secondary);
+  }
+</style>

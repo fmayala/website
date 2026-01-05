@@ -1,0 +1,212 @@
+---
+import DevMemeGalleryEditor from './dev/DevMemeGalleryEditor.astro';
+import fs from 'node:fs';
+import path from 'node:path';
+
+interface MemeImage {
+  src: string;
+  alt: string;
+  visible: boolean;
+}
+
+interface MemesConfig {
+  images: MemeImage[];
+}
+
+// Import and cast the config
+import memesConfigRaw from '../data/memes-config.json';
+const memesConfig = memesConfigRaw as MemesConfig;
+
+interface Props {
+  editable?: boolean;
+}
+
+const { editable = false } = Astro.props;
+const isDev = import.meta.env.DEV;
+
+// Scan the memes folder for images
+const memesDir = path.resolve(process.cwd(), 'public/memes');
+const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+
+let folderImages: string[] = [];
+try {
+  if (fs.existsSync(memesDir)) {
+    folderImages = fs.readdirSync(memesDir)
+      .filter(f => imageExtensions.includes(path.extname(f).toLowerCase()))
+      .map(f => `/memes/${f}`);
+  }
+} catch (e) {
+  // Folder doesn't exist yet, that's fine
+}
+
+// Create a map of config images by src for quick lookup
+const configMap = new Map<string, MemeImage>();
+for (const img of memesConfig.images) {
+  configMap.set(img.src, img);
+}
+
+// Merge: config images first (preserve order), then add any new folder images
+const allImages: MemeImage[] = [...memesConfig.images];
+
+for (const src of folderImages) {
+  if (!configMap.has(src)) {
+    // New image found in folder - add with defaults
+    allImages.push({
+      src,
+      alt: path.basename(src),
+      visible: true,
+    });
+  }
+}
+
+const visibleImages = allImages.filter(img => img.visible);
+const displayImages = isDev ? allImages : visibleImages;
+---
+
+{isDev && editable ? (
+  <DevMemeGalleryEditor images={displayImages} />
+) : (
+  <>
+    <div class="meme-gallery">
+      {visibleImages.map((image, index) => (
+        <div class={`meme-item animate-fade-in stagger-${(index % 6) + 1}`} data-meme-trigger>
+          <img
+            src={image.src}
+            alt={image.alt}
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      ))}
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="meme-lightbox" hidden>
+      <button class="lightbox-close" aria-label="Close">&times;</button>
+      <img class="lightbox-img" src="" alt="" />
+    </div>
+  </>
+)}
+
+<style>
+  .meme-gallery {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-sm);
+  }
+
+  .meme-item {
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 8px;
+    background-color: var(--bg-secondary);
+    cursor: pointer;
+  }
+
+  .meme-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    transition: transform 0.3s ease, filter 0.3s ease;
+  }
+
+  .meme-item:hover img {
+    transform: scale(1.05);
+  }
+
+  @media (max-width: 480px) {
+    .meme-gallery {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* Lightbox */
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .lightbox[hidden] {
+    display: none;
+  }
+
+  .lightbox-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+
+  .lightbox-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 2rem;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+  }
+
+  .lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+</style>
+
+<script>
+  function setupMemeLightbox() {
+    const lightbox = document.getElementById('meme-lightbox');
+    const lightboxImg = lightbox?.querySelector('.lightbox-img') as HTMLImageElement;
+    const closeBtn = lightbox?.querySelector('.lightbox-close');
+
+    if (!lightbox || !lightboxImg) return;
+
+    // Open lightbox on image click
+    document.querySelectorAll('.meme-gallery [data-meme-trigger]').forEach(item => {
+      item.addEventListener('click', () => {
+        const img = item.querySelector('img');
+        if (img) {
+          lightboxImg.src = img.src;
+          lightboxImg.alt = img.alt;
+          lightbox.hidden = false;
+          document.body.style.overflow = 'hidden';
+        }
+      });
+    });
+
+    // Close on button click
+    closeBtn?.addEventListener('click', closeLightbox);
+
+    // Close on backdrop click
+    lightbox.addEventListener('click', (e) => {
+      if (e.target === lightbox) closeLightbox();
+    });
+
+    // Close on ESC
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !lightbox.hidden) closeLightbox();
+    });
+
+    function closeLightbox() {
+      lightbox.hidden = true;
+      document.body.style.overflow = '';
+    }
+  }
+
+  setupMemeLightbox();
+  document.addEventListener('astro:after-swap', setupMemeLightbox);
+</script>

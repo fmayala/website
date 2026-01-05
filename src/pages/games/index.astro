@@ -1,0 +1,87 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import GameCard from '../../components/GameCard.astro';
+import DevAddGame from '../../components/dev/DevAddGame.astro';
+import { getCollection } from 'astro:content';
+
+const isDev = import.meta.env.DEV;
+
+// Get all games, sorted by date played
+const allGames = await getCollection('games');
+const games = allGames.sort(
+  (a, b) => b.data.datePlayed.valueOf() - a.data.datePlayed.valueOf()
+);
+---
+
+<BaseLayout
+  title="games"
+  description="some games I like"
+>
+  <section class="page">
+    <div class="page-header">
+      <h1>games</h1>
+      {isDev && (
+        <button class="dev-add-btn" onclick="openDevModal('add-game-modal')" title="New Game">+</button>
+      )}
+    </div>
+    <p class="text-muted page-desc">some games I've really enjoyed</p>
+
+    <div class="games-container">
+    {games.length > 0 ? (
+      <div class="games">
+        {games.map(game => (
+          <GameCard
+            title={game.data.title}
+            platform={game.data.platform}
+            rating={game.data.rating}
+            status={game.data.status}
+            cover={game.data.cover}
+          />
+        ))}
+      </div>
+    ) : (
+      <p class="text-muted">No games yet.</p>
+    )}
+    </div>
+  </section>
+
+  {isDev && <DevAddGame />}
+</BaseLayout>
+
+<style>
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+  }
+
+  .page-desc {
+    margin-bottom: var(--space-lg);
+  }
+
+  .games-container {
+    margin-top: var(--space-md);
+  }
+
+  .dev-add-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1.25rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+
+  .dev-add-btn:hover {
+    border-color: var(--text);
+    color: var(--text);
+    background: var(--bg-secondary);
+  }
+</style>

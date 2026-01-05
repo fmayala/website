@@ -1,0 +1,136 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const books = await getCollection('books');
+  return books.map(book => ({
+    params: { slug: book.slug },
+    props: book,
+  }));
+}
+
+const book = Astro.props;
+const { Content } = await book.render();
+
+const stars = '★'.repeat(book.data.rating) + '☆'.repeat(5 - book.data.rating);
+
+// Get cover URL: custom cover > Open Library by ISBN
+const coverUrl = book.data.cover
+  ? book.data.cover
+  : book.data.isbn
+    ? `https://covers.openlibrary.org/b/isbn/${book.data.isbn}-L.jpg`
+    : null;
+---
+
+<BaseLayout title={`${book.data.title} - Books`} description={`Review of ${book.data.title} by ${book.data.author}`}>
+  <article class="book-page animate-fade-in-up">
+    <header class="book-header">
+      {coverUrl && (
+        <div class="book-cover">
+          <img src={coverUrl} alt={`Cover of ${book.data.title}`} />
+        </div>
+      )}
+      <div class="book-info">
+        <h1>{book.data.title}</h1>
+        <p class="book-author">by {book.data.author}</p>
+        <div class="book-meta text-muted text-sm">
+          <span class="rating" aria-label={`${book.data.rating} out of 5 stars`}>{stars}</span>
+          {book.data.isbn && (
+            <>
+              <span>·</span>
+              <span>ISBN: {book.data.isbn}</span>
+            </>
+          )}
+        </div>
+      </div>
+    </header>
+    <div class="book-content">
+      <Content />
+    </div>
+    <footer class="book-footer">
+      <a href="/books" class="back-link">← Back to books</a>
+    </footer>
+  </article>
+</BaseLayout>
+
+<style>
+  .book-page {
+    margin-bottom: var(--space-xl);
+  }
+
+  .book-header {
+    display: flex;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-xl);
+  }
+
+  .book-cover {
+    flex-shrink: 0;
+    width: 120px;
+  }
+
+  .book-cover img {
+    width: 100%;
+    height: auto;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .book-info {
+    flex: 1;
+  }
+
+  .book-info h1 {
+    margin-bottom: var(--space-xs);
+  }
+
+  .book-author {
+    color: var(--text-muted);
+    margin-bottom: var(--space-sm);
+  }
+
+  .book-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .rating {
+    letter-spacing: 1px;
+  }
+
+  .book-content {
+    line-height: 1.75;
+  }
+
+  .book-content :global(h2) {
+    margin-top: var(--space-xl);
+    margin-bottom: var(--space-md);
+  }
+
+  .book-content :global(blockquote) {
+    margin: var(--space-lg) 0;
+  }
+
+  .book-footer {
+    margin-top: var(--space-xl);
+  }
+
+  .back-link {
+    color: var(--text-muted);
+    font-size: 0.9375rem;
+  }
+
+  @media (max-width: 480px) {
+    .book-header {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .book-meta {
+      justify-content: center;
+    }
+  }
+</style>

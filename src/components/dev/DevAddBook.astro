@@ -1,0 +1,294 @@
+---
+import DevModal from './DevModal.astro';
+
+const isDev = import.meta.env.DEV;
+const today = new Date().toISOString().split('T')[0];
+---
+
+{isDev && (
+  <DevModal id="add-book-modal" title="New Book">
+    <form id="add-book-form" class="dev-form">
+      <div class="dev-field">
+        <label for="book-title">Title</label>
+        <input type="text" id="book-title" name="title" required placeholder="The Design of Everyday Things" />
+      </div>
+
+      <div class="dev-field">
+        <label for="book-author">Author</label>
+        <input type="text" id="book-author" name="author" required placeholder="Don Norman" />
+      </div>
+
+      <div class="dev-field">
+        <label for="book-isbn">ISBN</label>
+        <div class="isbn-row">
+          <input type="text" id="book-isbn" name="isbn" placeholder="0465050654" />
+          <button type="button" id="lookup-cover" class="dev-btn dev-btn-secondary dev-btn-small">Lookup Cover</button>
+        </div>
+        <span class="dev-hint">Optional - used to fetch cover from Open Library</span>
+      </div>
+
+      <div class="dev-field">
+        <label for="book-cover">Cover URL</label>
+        <div class="cover-preview-row">
+          <input type="text" id="book-cover" name="cover" placeholder="Auto-filled from ISBN or enter URL" />
+          <div id="cover-preview" class="cover-preview" hidden>
+            <img id="cover-preview-img" src="" alt="Cover preview" />
+          </div>
+        </div>
+      </div>
+
+      <div class="dev-field-row">
+        <div class="dev-field">
+          <label for="book-rating">Rating</label>
+          <div class="star-rating" id="book-rating-stars">
+            <input type="hidden" id="book-rating" name="rating" value="5" />
+            <button type="button" class="star" data-value="1">★</button>
+            <button type="button" class="star" data-value="2">★</button>
+            <button type="button" class="star" data-value="3">★</button>
+            <button type="button" class="star" data-value="4">★</button>
+            <button type="button" class="star active" data-value="5">★</button>
+          </div>
+        </div>
+
+        <div class="dev-field">
+          <label for="book-date">Date Read</label>
+          <input type="date" id="book-date" name="dateRead" value={today} />
+        </div>
+      </div>
+
+      <div class="dev-field">
+        <label for="book-tags">Tags</label>
+        <input type="text" id="book-tags" name="tags" placeholder="design, psychology" />
+        <span class="dev-hint">Comma-separated</span>
+      </div>
+
+      <div class="dev-field">
+        <label for="book-notes">Notes</label>
+        <textarea id="book-notes" name="notes" rows="4" placeholder="Your thoughts on the book..."></textarea>
+      </div>
+
+      <div id="book-error" class="dev-error" hidden></div>
+    </form>
+
+    <Fragment slot="footer">
+      <button type="button" class="dev-btn dev-btn-secondary" data-close>Cancel</button>
+      <button type="submit" form="add-book-form" class="dev-btn" id="book-submit">Add Book</button>
+    </Fragment>
+  </DevModal>
+)}
+
+<style>
+  .isbn-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .isbn-row input {
+    flex: 1;
+  }
+
+  .cover-preview-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .cover-preview-row input {
+    flex: 1;
+  }
+
+  .cover-preview {
+    width: 60px;
+    height: 90px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+  }
+
+  .cover-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .star-rating {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .star-rating .star {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--border);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.1s ease;
+  }
+
+  .star-rating .star.active {
+    color: #f59e0b;
+  }
+
+  .star-rating .star:hover {
+    color: #fbbf24;
+  }
+</style>
+
+<script>
+  function setupAddBook() {
+    const form = document.getElementById('add-book-form') as HTMLFormElement;
+    const titleInput = document.getElementById('book-title') as HTMLInputElement;
+    const isbnInput = document.getElementById('book-isbn') as HTMLInputElement;
+    const coverInput = document.getElementById('book-cover') as HTMLInputElement;
+    const lookupBtn = document.getElementById('lookup-cover') as HTMLButtonElement;
+    const coverPreview = document.getElementById('cover-preview') as HTMLElement;
+    const coverPreviewImg = document.getElementById('cover-preview-img') as HTMLImageElement;
+    const ratingInput = document.getElementById('book-rating') as HTMLInputElement;
+    const ratingStars = document.getElementById('book-rating-stars') as HTMLElement;
+    const errorEl = document.getElementById('book-error') as HTMLElement;
+    const submitBtn = document.getElementById('book-submit') as HTMLButtonElement;
+
+    if (!form) return;
+
+    // Star rating functionality
+    const stars = ratingStars?.querySelectorAll('.star');
+    stars?.forEach(star => {
+      star.addEventListener('click', () => {
+        const value = parseInt((star as HTMLElement).dataset.value || '5');
+        ratingInput.value = value.toString();
+        stars.forEach((s, i) => {
+          s.classList.toggle('active', i < value);
+        });
+      });
+    });
+
+    // ISBN lookup
+    lookupBtn?.addEventListener('click', async () => {
+      const isbn = isbnInput.value.trim().replace(/[-\s]/g, '');
+      if (!isbn) {
+        errorEl.textContent = 'Please enter an ISBN first';
+        errorEl.hidden = false;
+        return;
+      }
+
+      lookupBtn.disabled = true;
+      lookupBtn.textContent = 'Looking up...';
+      errorEl.hidden = true;
+
+      try {
+        // Try Open Library covers
+        const coverUrl = `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`;
+
+        // Validate the image loads
+        const img = new Image();
+        img.onload = () => {
+          // Check if it's the placeholder (1x1 pixel)
+          if (img.width <= 1 && img.height <= 1) {
+            errorEl.textContent = 'No cover found for this ISBN';
+            errorEl.hidden = false;
+          } else {
+            coverInput.value = coverUrl;
+            coverPreviewImg.src = coverUrl;
+            coverPreview.hidden = false;
+          }
+          lookupBtn.disabled = false;
+          lookupBtn.textContent = 'Lookup Cover';
+        };
+        img.onerror = () => {
+          errorEl.textContent = 'Could not load cover for this ISBN';
+          errorEl.hidden = false;
+          lookupBtn.disabled = false;
+          lookupBtn.textContent = 'Lookup Cover';
+        };
+        img.src = coverUrl;
+      } catch (err) {
+        errorEl.textContent = 'Failed to lookup cover';
+        errorEl.hidden = false;
+        lookupBtn.disabled = false;
+        lookupBtn.textContent = 'Lookup Cover';
+      }
+    });
+
+    // Preview cover on URL change
+    coverInput?.addEventListener('change', () => {
+      const url = coverInput.value.trim();
+      if (url) {
+        coverPreviewImg.src = url;
+        coverPreview.hidden = false;
+      } else {
+        coverPreview.hidden = true;
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorEl.hidden = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Adding...';
+
+      try {
+        const formData = new FormData(form);
+        const title = formData.get('title') as string;
+        const author = formData.get('author') as string;
+        const isbn = formData.get('isbn') as string;
+        const cover = formData.get('cover') as string;
+        const rating = parseInt(formData.get('rating') as string) || 5;
+        const dateRead = formData.get('dateRead') as string;
+        const tagsStr = formData.get('tags') as string;
+        const notes = formData.get('notes') as string;
+
+        const tags = tagsStr
+          ? tagsStr.split(',').map(t => t.trim()).filter(Boolean)
+          : [];
+
+        // Generate slug from title
+        const slug = title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '');
+
+        const frontmatter: Record<string, unknown> = {
+          title,
+          author,
+          dateRead,
+          rating,
+          tags,
+        };
+
+        if (isbn) frontmatter.isbn = isbn;
+        if (cover) frontmatter.cover = cover;
+
+        const response = await fetch('/__dev-editor/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            collection: 'books',
+            slug,
+            frontmatter,
+            body: notes || '',
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to add book');
+        }
+
+        // Redirect to books page
+        window.location.href = '/books';
+      } catch (err) {
+        errorEl.textContent = err instanceof Error ? err.message : 'An error occurred';
+        errorEl.hidden = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add Book';
+      }
+    });
+  }
+
+  setupAddBook();
+  document.addEventListener('astro:after-swap', setupAddBook);
+</script>

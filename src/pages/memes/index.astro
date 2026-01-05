@@ -1,0 +1,34 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import MemeGallery from '../../components/MemeGallery.astro';
+
+const isDev = import.meta.env.DEV;
+---
+
+<BaseLayout
+  title="memes"
+  description="memes I've collected"
+>
+  <section class="page">
+    <h1>memes</h1>
+    <p class="text-muted page-desc">my grandiose meme wall of china</p>
+
+    <div class="meme-container">
+      <MemeGallery editable={isDev} />
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .page h1 {
+    margin-bottom: var(--space-sm);
+  }
+
+  .page-desc {
+    margin-bottom: var(--space-lg);
+  }
+
+  .meme-container {
+    margin-top: var(--space-md);
+  }
+</style>

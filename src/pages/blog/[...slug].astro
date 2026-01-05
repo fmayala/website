@@ -1,0 +1,40 @@
+---
+import { getCollection } from 'astro:content';
+import PostLayout from '../../layouts/PostLayout.astro';
+import DevEditor from '../../components/DevEditor.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  return posts.map(post => ({
+    params: { slug: post.slug },
+    props: post,
+  }));
+}
+
+const post = Astro.props;
+const { Content } = await post.render();
+
+// Build the file path and raw content for dev editor
+const filePath = `src/content/blog/${post.id}`;
+const frontmatterYaml = Object.entries(post.data)
+  .map(([key, value]) => {
+    if (value instanceof Date) {
+      return `${key}: ${value.toISOString().split('T')[0]}`;
+    }
+    if (Array.isArray(value)) {
+      return `${key}:\n${value.map(v => `  - ${v}`).join('\n')}`;
+    }
+    if (typeof value === 'string' && (value.includes(':') || value.includes('#'))) {
+      return `${key}: "${value}"`;
+    }
+    return `${key}: ${value}`;
+  })
+  .join('\n');
+const rawContent = `---\n${frontmatterYaml}\n---\n\n${post.body}`;
+---
+
+<PostLayout frontmatter={post.data}>
+  <Content />
+</PostLayout>
+
+<DevEditor filePath={filePath} content={rawContent} />

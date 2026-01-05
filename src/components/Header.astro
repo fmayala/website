@@ -1,0 +1,106 @@
+---
+import ThemeToggle from './ThemeToggle.astro';
+
+const navItems = [
+  { href: '/projects', label: 'projects' },
+  { href: '/blog', label: 'blog' },
+  { href: '/books', label: 'books' },
+  { href: '/games', label: 'games' },
+  { href: '/memes', label: 'memes' },
+  { href: 'https://calendar.app.google/qcoeH5UzmLzguxjE9', label: 'talk', isAction: true, external: true },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<header class="header">
+  <nav class="nav container">
+    <a href="/" class="site-title">francisco ayala</a>
+
+    <div class="nav-right">
+      <ul class="nav-links">
+        {navItems.map(item => (
+          <li>
+            <a
+              href={item.href}
+              class:list={[
+                { active: !item.external && currentPath.startsWith(item.href) },
+                { 'nav-action': item.isAction }
+              ]}
+              {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+            >
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+      <ThemeToggle />
+    </div>
+  </nav>
+</header>
+
+<style>
+  .header {
+    padding: var(--space-lg) 0;
+    margin-bottom: var(--space-xl);
+  }
+
+  .nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .site-title {
+    font-weight: 600;
+    font-size: 1.125rem;
+    text-decoration: none;
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+  }
+
+  .nav-links {
+    display: flex;
+    gap: var(--space-md);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .nav-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.9375rem;
+    transition: color 0.15s ease;
+  }
+
+  .nav-links a:hover,
+  .nav-links a.active {
+    color: var(--text);
+  }
+
+  .nav-links a.nav-action {
+    background: var(--bg-secondary);
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+
+  .nav-links a.nav-action:hover {
+    background: var(--border);
+  }
+
+  @media (max-width: 480px) {
+    .nav-links {
+      gap: var(--space-sm);
+    }
+
+    .nav-right {
+      gap: var(--space-md);
+    }
+  }
+</style>

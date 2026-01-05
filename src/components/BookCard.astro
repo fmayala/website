@@ -1,0 +1,101 @@
+---
+interface Props {
+  title: string;
+  author: string;
+  rating?: number;
+  slug: string;
+  isbn?: string;
+  cover?: string;
+  dateRead?: Date;
+}
+
+const { title, author, rating, slug, isbn, cover } = Astro.props;
+
+// Generate star rating
+// const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
+
+// Get cover URL: custom cover > Open Library by ISBN > placeholder
+const coverUrl = cover
+  ? cover
+  : isbn
+    ? `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`
+    : null;
+---
+
+<article class="book-card">
+  <a href={`/books/${slug}`} class="book-link">
+    {coverUrl && (
+      <div class="book-cover">
+        <img
+          src={coverUrl}
+          alt={`Cover of ${title}`}
+          loading="lazy"
+          onerror="this.style.display='none'"
+        />
+      </div>
+    )}
+    <div class="book-info">
+      <h3 class="book-title">{title}</h3>
+      <p class="book-author text-muted text-sm">by {author}</p>
+    </div>
+  </a>
+</article>
+
+<style>
+  .book-card {
+    padding: var(--space-md) 0;
+  }
+
+
+  .book-link {
+    text-decoration: none;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+  }
+
+  .book-cover {
+    flex-shrink: 0;
+    width: 32px;
+    height: 48px;
+    border-radius: 3px;
+    overflow: hidden;
+    background-color: var(--bg-secondary);
+  }
+
+  .book-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+
+  .book-link:hover .book-cover img {
+    transform: scale(1.05);
+  }
+
+  .book-link:hover .book-title {
+    opacity: 0.7;
+  }
+
+  .book-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .book-title {
+    font-size: 1rem;
+    margin-bottom: var(--space-xs);
+    transition: opacity 0.2s ease;
+  }
+
+  .book-author {
+    margin: 0;
+    margin-bottom: var(--space-xs);
+  }
+
+  .book-rating {
+    letter-spacing: 1px;
+  }
+</style>

@@ -1,0 +1,157 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PostCard from '../components/PostCard.astro';
+import BookCard from '../components/BookCard.astro';
+import GameCard from '../components/GameCard.astro';
+import Gallery from '../components/Gallery.astro';
+import { getCollection } from 'astro:content';
+
+// Get recent posts (non-draft, sorted by date)
+const allPosts = await getCollection('blog', ({ data }) => !data.draft);
+const recentPosts = allPosts
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .slice(0, 3);
+
+// Get recent books (sorted by date read)
+const allBooks = await getCollection('books');
+const recentBooks = allBooks
+  .sort((a, b) => b.data.dateRead.valueOf() - a.data.dateRead.valueOf())
+  .slice(0, 3);
+
+// Get recent games (sorted by date played)
+const allGames = await getCollection('games');
+const recentGames = allGames
+  .sort((a, b) => b.data.datePlayed.valueOf() - a.data.datePlayed.valueOf())
+  .slice(0, 3);
+
+const isDev = import.meta.env.DEV;
+---
+
+<BaseLayout
+  title="francisco"
+  description="francisco's personal website. projects, blog, books, games, memes."
+>
+  <section class="intro animate-fade-in-up">
+    <h1>hey</h1>
+    <p class="intro-text text-muted">
+      i'm francisco. I love design, computers, math, and learning. currently building great things @ <a href="https://solstice.finance" target="_blank" rel="noopener noreferrer">solstice labs</a>
+    </p>
+  </section>
+
+  <section class="section animate-fade-in stagger-1">
+    <div class="section-header">
+      <h2>moments</h2>
+    </div>
+    <Gallery editable={isDev} />
+  </section>
+
+  {recentPosts.length > 0 && (
+    <section class="section animate-fade-in stagger-2">
+      <div class="section-header">
+        <h2>thoughts</h2>
+        <a href="/blog" class="view-all text-sm">View all →</a>
+      </div>
+      <div class="posts">
+        {recentPosts.map(post => (
+          <PostCard
+            title={post.data.title}
+            description={post.data.description}
+            pubDate={post.data.pubDate}
+            slug={post.slug}
+            tags={post.data.tags}
+          />
+        ))}
+      </div>
+    </section>
+  )}
+
+  {recentBooks.length > 0 && (
+    <section class="section animate-fade-in stagger-3">
+      <div class="section-header">
+        <h2>books</h2>
+        <a href="/books" class="view-all text-sm">View all →</a>
+      </div>
+      <div class="books">
+        {recentBooks.map(book => (
+          <BookCard
+            title={book.data.title}
+            author={book.data.author}
+            rating={book.data.rating}
+            slug={book.slug}
+            isbn={book.data.isbn}
+            cover={book.data.cover}
+          />
+        ))}
+      </div>
+    </section>
+  )}
+
+  {recentGames.length > 0 && (
+    <section class="section animate-fade-in stagger-4">
+      <div class="section-header">
+        <h2>games</h2>
+        <a href="/games" class="view-all text-sm">View all →</a>
+      </div>
+      <div class="games">
+        {recentGames.map(game => (
+          <GameCard
+            title={game.data.title}
+            platform={game.data.platform}
+            rating={game.data.rating}
+            status={game.data.status}
+            cover={game.data.cover}
+          />
+        ))}
+      </div>
+    </section>
+  )}
+</BaseLayout>
+
+<style>
+  .intro {
+    margin-bottom: var(--space-xl);
+  }
+
+  .intro h1 {
+    margin-bottom: var(--space-md);
+  }
+
+  .intro-text {
+    font-size: 1.125rem;
+    line-height: 1.6;
+  }
+
+  .intro-text a {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color 0.15s ease;
+  }
+
+  .intro-text a:hover {
+    color: var(--text);
+  }
+
+  .section {
+    margin-bottom: var(--space-xl);
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: var(--space-md);
+  }
+
+  .section-header h2 {
+    font-size: 1rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+
+  .view-all {
+    color: var(--text-muted);
+  }
+</style>

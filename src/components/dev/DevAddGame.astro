@@ -1,0 +1,330 @@
+---
+import DevModal from './DevModal.astro';
+
+const isDev = import.meta.env.DEV;
+const today = new Date().toISOString().split('T')[0];
+---
+
+{isDev && (
+  <DevModal id="add-game-modal" title="New Game">
+    <form id="add-game-form" class="dev-form">
+      <div class="dev-field">
+        <label for="game-title">Title</label>
+        <input type="text" id="game-title" name="title" required placeholder="Counter-Strike 2" />
+      </div>
+
+      <div class="dev-field">
+        <label for="game-steam">Steam App ID or URL</label>
+        <div class="steam-row">
+          <input type="text" id="game-steam" name="steam" placeholder="730 or https://store.steampowered.com/app/730/..." />
+          <button type="button" id="lookup-steam" class="dev-btn dev-btn-secondary dev-btn-small">Fetch Cover</button>
+        </div>
+        <span class="dev-hint">Enter App ID or paste Steam store URL</span>
+      </div>
+
+      <div class="dev-field">
+        <label for="game-cover">Cover URL</label>
+        <div class="cover-preview-row">
+          <input type="text" id="game-cover" name="cover" placeholder="Auto-filled from Steam or enter URL" />
+          <div id="game-cover-preview" class="cover-preview" hidden>
+            <img id="game-cover-img" src="" alt="Cover preview" />
+          </div>
+        </div>
+      </div>
+
+      <div class="dev-field-row">
+        <div class="dev-field">
+          <label for="game-platform">Platform</label>
+          <input type="text" id="game-platform" name="platform" value="PC" placeholder="PC" />
+        </div>
+
+        <div class="dev-field">
+          <label for="game-status">Status</label>
+          <select id="game-status" name="status">
+            <option value="completed">Completed</option>
+            <option value="playing">Playing</option>
+            <option value="backlog">Backlog</option>
+            <option value="dropped">Dropped</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="dev-field-row">
+        <div class="dev-field">
+          <label>Rating (optional)</label>
+          <div class="star-rating" id="game-rating-stars">
+            <input type="hidden" id="game-rating" name="rating" value="" />
+            <button type="button" class="star" data-value="1">★</button>
+            <button type="button" class="star" data-value="2">★</button>
+            <button type="button" class="star" data-value="3">★</button>
+            <button type="button" class="star" data-value="4">★</button>
+            <button type="button" class="star" data-value="5">★</button>
+            <button type="button" class="star-clear" title="Clear rating">×</button>
+          </div>
+        </div>
+
+        <div class="dev-field">
+          <label for="game-date">Date Played</label>
+          <input type="date" id="game-date" name="datePlayed" value={today} />
+        </div>
+      </div>
+
+      <div class="dev-field">
+        <label for="game-tags">Tags</label>
+        <input type="text" id="game-tags" name="tags" placeholder="fps, multiplayer" />
+        <span class="dev-hint">Comma-separated</span>
+      </div>
+
+      <div id="game-error" class="dev-error" hidden></div>
+    </form>
+
+    <Fragment slot="footer">
+      <button type="button" class="dev-btn dev-btn-secondary" data-close>Cancel</button>
+      <button type="submit" form="add-game-form" class="dev-btn" id="game-submit">Add Game</button>
+    </Fragment>
+  </DevModal>
+)}
+
+<style>
+  .steam-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .steam-row input {
+    flex: 1;
+  }
+
+  .cover-preview-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .cover-preview-row input {
+    flex: 1;
+  }
+
+  .cover-preview {
+    width: 92px;
+    height: 43px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+  }
+
+  .cover-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .star-rating {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+  }
+
+  .star-rating .star {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--border);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.1s ease;
+  }
+
+  .star-rating .star.active {
+    color: #f59e0b;
+  }
+
+  .star-rating .star:hover {
+    color: #fbbf24;
+  }
+
+  .star-clear {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0 0.25rem;
+    margin-left: 0.25rem;
+  }
+
+  .star-clear:hover {
+    color: var(--text);
+  }
+</style>
+
+<script>
+  function setupAddGame() {
+    const form = document.getElementById('add-game-form') as HTMLFormElement;
+    const steamInput = document.getElementById('game-steam') as HTMLInputElement;
+    const coverInput = document.getElementById('game-cover') as HTMLInputElement;
+    const lookupBtn = document.getElementById('lookup-steam') as HTMLButtonElement;
+    const coverPreview = document.getElementById('game-cover-preview') as HTMLElement;
+    const coverPreviewImg = document.getElementById('game-cover-img') as HTMLImageElement;
+    const ratingInput = document.getElementById('game-rating') as HTMLInputElement;
+    const ratingStars = document.getElementById('game-rating-stars') as HTMLElement;
+    const errorEl = document.getElementById('game-error') as HTMLElement;
+    const submitBtn = document.getElementById('game-submit') as HTMLButtonElement;
+
+    if (!form) return;
+
+    // Star rating functionality
+    const stars = ratingStars?.querySelectorAll('.star');
+    const clearBtn = ratingStars?.querySelector('.star-clear');
+
+    stars?.forEach(star => {
+      star.addEventListener('click', () => {
+        const value = parseInt((star as HTMLElement).dataset.value || '0');
+        ratingInput.value = value.toString();
+        stars.forEach((s, i) => {
+          s.classList.toggle('active', i < value);
+        });
+      });
+    });
+
+    clearBtn?.addEventListener('click', () => {
+      ratingInput.value = '';
+      stars?.forEach(s => s.classList.remove('active'));
+    });
+
+    // Extract Steam App ID from input
+    function extractSteamAppId(input: string): string | null {
+      const trimmed = input.trim();
+
+      // Check if it's just a number
+      if (/^\d+$/.test(trimmed)) {
+        return trimmed;
+      }
+
+      // Try to extract from URL
+      const match = trimmed.match(/\/app\/(\d+)/);
+      return match ? match[1] : null;
+    }
+
+    // Steam lookup
+    lookupBtn?.addEventListener('click', async () => {
+      const appId = extractSteamAppId(steamInput.value);
+
+      if (!appId) {
+        errorEl.textContent = 'Please enter a valid Steam App ID or URL';
+        errorEl.hidden = false;
+        return;
+      }
+
+      lookupBtn.disabled = true;
+      lookupBtn.textContent = 'Fetching...';
+      errorEl.hidden = true;
+
+      try {
+        const coverUrl = `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/header.jpg`;
+
+        // Validate the image loads
+        const img = new Image();
+        img.onload = () => {
+          coverInput.value = coverUrl;
+          coverPreviewImg.src = coverUrl;
+          coverPreview.hidden = false;
+          lookupBtn.disabled = false;
+          lookupBtn.textContent = 'Fetch Cover';
+        };
+        img.onerror = () => {
+          errorEl.textContent = 'Could not load cover for this Steam App ID';
+          errorEl.hidden = false;
+          lookupBtn.disabled = false;
+          lookupBtn.textContent = 'Fetch Cover';
+        };
+        img.src = coverUrl;
+      } catch (err) {
+        errorEl.textContent = 'Failed to fetch cover';
+        errorEl.hidden = false;
+        lookupBtn.disabled = false;
+        lookupBtn.textContent = 'Fetch Cover';
+      }
+    });
+
+    // Preview cover on URL change
+    coverInput?.addEventListener('change', () => {
+      const url = coverInput.value.trim();
+      if (url) {
+        coverPreviewImg.src = url;
+        coverPreview.hidden = false;
+      } else {
+        coverPreview.hidden = true;
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorEl.hidden = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Adding...';
+
+      try {
+        const formData = new FormData(form);
+        const title = formData.get('title') as string;
+        const platform = formData.get('platform') as string;
+        const status = formData.get('status') as string;
+        const cover = formData.get('cover') as string;
+        const ratingStr = formData.get('rating') as string;
+        const datePlayed = formData.get('datePlayed') as string;
+        const tagsStr = formData.get('tags') as string;
+
+        const tags = tagsStr
+          ? tagsStr.split(',').map(t => t.trim()).filter(Boolean)
+          : [];
+
+        // Generate slug from title
+        const slug = title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '');
+
+        const frontmatter: Record<string, unknown> = {
+          title,
+          datePlayed,
+          status,
+          tags,
+        };
+
+        if (platform) frontmatter.platform = platform;
+        if (cover) frontmatter.cover = cover;
+        if (ratingStr) frontmatter.rating = parseInt(ratingStr);
+
+        const response = await fetch('/__dev-editor/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            collection: 'games',
+            slug,
+            frontmatter,
+            body: '',
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to add game');
+        }
+
+        // Redirect to games page
+        window.location.href = '/games';
+      } catch (err) {
+        errorEl.textContent = err instanceof Error ? err.message : 'An error occurred';
+        errorEl.hidden = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add Game';
+      }
+    });
+  }
+
+  setupAddGame();
+  document.addEventListener('astro:after-swap', setupAddGame);
+</script>

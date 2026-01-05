@@ -1,0 +1,86 @@
+---
+interface Props {
+  title: string;
+  platform?: string;
+  rating?: number;
+  status: 'playing' | 'completed' | 'dropped' | 'backlog';
+  cover?: string;
+}
+
+const { title, platform, rating, cover } = Astro.props;
+
+const stars = rating ? '★'.repeat(rating) + '☆'.repeat(5 - rating) : null;
+
+// Extract Steam App ID from cover URL to build store link
+const steamAppId = cover?.match(/\/apps\/(\d+)\//)?.[1];
+const steamUrl = steamAppId ? `https://store.steampowered.com/app/${steamAppId}` : null;
+---
+
+<a href={steamUrl} target="_blank" rel="noopener noreferrer" class="game-card">
+  {cover && (
+    <div class="game-cover">
+      <img src={cover} alt={`Cover of ${title}`} loading="lazy" />
+    </div>
+  )}
+  <div class="game-info">
+    <h3 class="game-title">{title}</h3>
+    <div class="game-meta text-muted text-sm">
+      {platform && <span class="platform">{platform}</span>}
+      {platform && stars && <span>·</span>}
+      {stars && <span class="rating" aria-label={`${rating} out of 5 stars`}>{stars}</span>}
+    </div>
+  </div>
+</a>
+
+<style>
+  .game-card {
+    display: flex;
+    gap: var(--space-md);
+    padding: var(--space-sm) 0;
+    text-decoration: none;
+    border-radius: 8px;
+  }
+
+  .game-cover {
+    flex-shrink: 0;
+    width: 64px;
+    height: 36px;
+    overflow: hidden;
+    border-radius: 3px;
+    background-color: var(--bg-secondary);
+  }
+
+  .game-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .game-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .game-title {
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: var(--space-xs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .game-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    align-items: center;
+  }
+
+  .rating {
+    letter-spacing: 1px;
+  }
+</style>

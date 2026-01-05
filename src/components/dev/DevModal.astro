@@ -1,0 +1,260 @@
+---
+interface Props {
+  id: string;
+  title: string;
+}
+
+const { id, title } = Astro.props;
+const isDev = import.meta.env.DEV;
+---
+
+{isDev && (
+  <div class="dev-modal" id={id} hidden>
+    <div class="dev-modal-overlay" data-close></div>
+    <div class="dev-modal-panel">
+      <div class="dev-modal-header">
+        <h3>{title}</h3>
+        <button class="dev-modal-close" type="button" data-close>&times;</button>
+      </div>
+      <div class="dev-modal-content">
+        <slot />
+      </div>
+      <div class="dev-modal-footer">
+        <slot name="footer" />
+      </div>
+    </div>
+  </div>
+)}
+
+<style>
+  .dev-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+  }
+
+  .dev-modal[hidden] {
+    display: none;
+  }
+
+  .dev-modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+  }
+
+  .dev-modal-panel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(520px, 90vw);
+    max-height: 85vh;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dev-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .dev-modal-header h3 {
+    font-size: 1rem;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .dev-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+
+  .dev-modal-close:hover {
+    color: var(--text);
+  }
+
+  .dev-modal-content {
+    padding: 1.25rem;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .dev-modal-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .dev-modal-footer:empty {
+    display: none;
+  }
+
+  /* Shared form styles for dev components */
+  :global(.dev-form) {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  :global(.dev-field) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  :global(.dev-field label) {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+
+  :global(.dev-field input),
+  :global(.dev-field textarea),
+  :global(.dev-field select) {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.9375rem;
+  }
+
+  :global(.dev-field input:focus),
+  :global(.dev-field textarea:focus),
+  :global(.dev-field select:focus) {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  :global(.dev-field textarea) {
+    resize: vertical;
+    min-height: 80px;
+  }
+
+  :global(.dev-field-row) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  :global(.dev-field-inline) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  :global(.dev-field-inline input[type="checkbox"]) {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  :global(.dev-btn) {
+    padding: 0.5rem 1.25rem;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  :global(.dev-btn:hover) {
+    opacity: 0.9;
+  }
+
+  :global(.dev-btn:disabled) {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  :global(.dev-btn-secondary) {
+    background: var(--bg-secondary);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  :global(.dev-btn-small) {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  :global(.dev-error) {
+    color: #e53e3e;
+    font-size: 0.8125rem;
+    margin-top: 0.25rem;
+  }
+
+  :global(.dev-hint) {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+  }
+</style>
+
+<script>
+  function setupDevModals() {
+    document.querySelectorAll('.dev-modal').forEach(modal => {
+      const closeButtons = modal.querySelectorAll('[data-close]');
+
+      closeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          modal.setAttribute('hidden', '');
+          document.body.style.overflow = '';
+        });
+      });
+    });
+
+    // ESC key to close
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.dev-modal:not([hidden])').forEach(modal => {
+          modal.setAttribute('hidden', '');
+          document.body.style.overflow = '';
+        });
+      }
+    });
+  }
+
+  // Helper to open modal
+  (window as any).openDevModal = (id: string) => {
+    const modal = document.getElementById(id);
+    if (modal) {
+      modal.removeAttribute('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+  };
+
+  // Helper to close modal
+  (window as any).closeDevModal = (id: string) => {
+    const modal = document.getElementById(id);
+    if (modal) {
+      modal.setAttribute('hidden', '');
+      document.body.style.overflow = '';
+    }
+  };
+
+  setupDevModals();
+  document.addEventListener('astro:after-swap', setupDevModals);
+</script>

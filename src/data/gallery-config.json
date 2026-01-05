@@ -1,0 +1,49 @@
+{
+  "images": [
+    {
+      "src": "/gallery/img-5223.jpg",
+      "alt": "img-5223.jpg",
+      "visible": true
+    },
+    {
+      "src": "/gallery/img-5219.jpg",
+      "alt": "img-5219.jpg",
+      "visible": true
+    },
+    {
+      "src": "/gallery/img-5221.jpg",
+      "alt": "img-5221.jpg",
+      "visible": true
+    },
+    {
+      "src": "/gallery/img-5087.jpg",
+      "alt": "img-5087.jpg",
+      "visible": true
+    },
+    {
+      "src": "/gallery/img-5218.jpg",
+      "alt": "img-5218.jpg",
+      "visible": true
+    },
+    {
+      "src": "/gallery/bathroom.jpg",
+      "alt": "don't do coke",
+      "visible": true
+    },
+    {
+      "src": "/gallery/airport-purple.jpg",
+      "alt": "Chicago Airport",
+      "visible": true
+    },
+    {
+      "src": "/gallery/file-003.png",
+      "alt": "file-003.png",
+      "visible": true
+    },
+    {
+      "src": "/gallery/img-5079.jpg",
+      "alt": "img-5079.jpg",
+      "visible": true
+    }
+  ]
+}

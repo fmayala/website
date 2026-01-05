@@ -1,0 +1,74 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  url?: string;
+  repo?: string;
+  tech?: string[];
+}
+
+const { title, description, url, repo, tech = [] } = Astro.props;
+
+// Prefer live URL, fall back to repo
+const href = url || repo;
+---
+
+<article class="project-card">
+  <a href={href} class="project-link" target="_blank" rel="noopener noreferrer">
+    <div class="project-header">
+      <h3 class="project-title">
+        {title}
+        <span class="arrow">↗</span>
+      </h3>
+    </div>
+    <p class="project-description text-muted">{description}</p>
+    {tech.length > 0 && (
+      <div class="project-tech text-sm text-muted">
+        {tech.join(' · ')}
+      </div>
+    )}
+  </a>
+</article>
+
+<style>
+  .project-card {
+    padding: var(--space-md) 0;
+  }
+
+
+  .project-link {
+    text-decoration: none;
+    display: block;
+  }
+
+  .project-link:hover .project-title {
+    opacity: 0.7;
+  }
+
+  .project-header {
+    margin-bottom: var(--space-xs);
+  }
+
+  .project-title {
+    font-size: 1.125rem;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    transition: opacity 0.15s ease;
+  }
+
+  .arrow {
+    font-size: 0.875rem;
+    opacity: 0.5;
+  }
+
+  .project-description {
+    margin-bottom: var(--space-sm);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+
+  .project-tech {
+    opacity: 0.8;
+  }
+</style>

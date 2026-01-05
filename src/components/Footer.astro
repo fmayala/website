@@ -1,0 +1,36 @@
+---
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="footer" transition:persist>
+  <div class="container footer-content">
+    <span class="copyright">© {currentYear} Francisco Ayala</span>
+    <div class="footer-links">
+      <a href="https://github.com/fmayala" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    margin-top: auto;
+    padding: var(--space-xl) 0 var(--space-lg);
+  }
+
+  .footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  .footer-links {
+    display: flex;
+    gap: var(--space-md);
+  }
+
+  .footer-links a {
+    color: var(--text-muted);
+  }
+</style>

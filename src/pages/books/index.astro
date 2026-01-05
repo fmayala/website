@@ -1,0 +1,88 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import BookCard from '../../components/BookCard.astro';
+import DevAddBook from '../../components/dev/DevAddBook.astro';
+import { getCollection } from 'astro:content';
+
+const isDev = import.meta.env.DEV;
+
+// Get all books, sorted by date read
+const allBooks = await getCollection('books');
+const books = allBooks.sort(
+  (a, b) => b.data.dateRead.valueOf() - a.data.dateRead.valueOf()
+);
+---
+
+<BaseLayout
+  title="Books - Francisco"
+  description="books I've read and what I thought about them"
+>
+  <section class="page">
+    <div class="page-header">
+      <h1>books</h1>
+      {isDev && (
+        <button class="dev-add-btn" onclick="openDevModal('add-book-modal')" title="New Book">+</button>
+      )}
+    </div>
+    <p class="text-muted page-desc">must reads that shaped my thinking</p>
+
+    <div class="books-container">
+    {books.length > 0 ? (
+      <div class="books">
+        {books.map(book => (
+          <BookCard
+            title={book.data.title}
+            author={book.data.author}
+            rating={book.data.rating}
+            slug={book.slug}
+            isbn={book.data.isbn}
+            cover={book.data.cover}
+          />
+        ))}
+      </div>
+    ) : (
+      <p class="text-muted">No books yet.</p>
+    )}
+    </div>
+  </section>
+
+  {isDev && <DevAddBook />}
+</BaseLayout>
+
+<style>
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+  }
+
+  .page-desc {
+    margin-bottom: var(--space-lg);
+  }
+
+  .books-container {
+    margin-top: var(--space-md);
+  }
+
+  .dev-add-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1.25rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+
+  .dev-add-btn:hover {
+    border-color: var(--text);
+    color: var(--text);
+    background: var(--bg-secondary);
+  }
+</style>

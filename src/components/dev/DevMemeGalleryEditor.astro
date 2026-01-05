@@ -1,0 +1,1005 @@
+---
+import DevModal from './DevModal.astro';
+
+interface MemeImage {
+  src: string;
+  alt: string;
+  visible: boolean;
+}
+
+interface Props {
+  images: MemeImage[];
+}
+
+const { images } = Astro.props;
+const isDev = import.meta.env.DEV;
+---
+
+{isDev && (
+  <div class="meme-gallery-editor">
+    <div class="meme-gallery">
+      {images.map((image, index) => (
+        <div
+          class={`meme-item ${!image.visible ? 'hidden-image' : ''} animate-fade-in stagger-${(index % 6) + 1}`}
+          data-src={image.src}
+          data-alt={image.alt}
+          data-visible={image.visible.toString()}
+          data-index={index}
+          draggable="true"
+        >
+          <img
+            src={image.src}
+            alt={image.alt}
+            loading="lazy"
+            decoding="async"
+          />
+          <div class="image-overlay">
+            {image.visible ? (
+              <button class="overlay-btn hide-btn" title="Hide meme">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </button>
+            ) : (
+              <button class="overlay-btn show-btn" title="Show meme">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            )}
+            <button class="overlay-btn delete-btn" title="Delete meme">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+            </button>
+          </div>
+          {!image.visible && (
+            <div class="hidden-badge">Hidden</div>
+          )}
+        </div>
+      ))}
+
+      <!-- Add new meme placeholder -->
+      <div class="meme-item add-placeholder" id="add-meme-trigger">
+        <div class="add-content">
+          <span class="add-icon">+</span>
+          <span class="add-text">Add Meme</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Meme Modal -->
+    <DevModal id="add-meme-modal" title="Add Meme">
+      <div class="tabs">
+        <button type="button" class="tab active" data-tab="upload">Upload New</button>
+        <button type="button" class="tab" data-tab="existing">Choose Existing</button>
+      </div>
+
+      <div class="tab-content" id="meme-tab-upload">
+        <form id="upload-meme-form" class="dev-form">
+          <div class="drop-zone" id="meme-drop-zone">
+            <input type="file" id="meme-file-input" accept="image/*,.heic,.heif" hidden />
+            <div class="drop-zone-content">
+              <span class="drop-icon">📷</span>
+              <span class="drop-text">Drop meme here or click to browse</span>
+            </div>
+            <div class="drop-preview" id="meme-drop-preview" hidden>
+              <img id="meme-preview-img" src="" alt="Preview" />
+              <button type="button" class="remove-preview" id="meme-remove-preview">×</button>
+            </div>
+          </div>
+
+          <div class="dev-field">
+            <label for="meme-upload-filename">Filename</label>
+            <div class="filename-row">
+              <input type="text" id="meme-upload-filename" name="filename" placeholder="funny-meme" />
+              <span class="filename-ext">.jpg</span>
+            </div>
+            <span class="dev-hint">Will be saved to /memes/</span>
+          </div>
+
+          <div class="dev-field">
+            <label for="meme-upload-alt">Alt Text</label>
+            <input type="text" id="meme-upload-alt" name="alt" placeholder="Description of the meme" />
+          </div>
+
+          <div id="meme-upload-error" class="dev-error" hidden></div>
+        </form>
+      </div>
+
+      <div class="tab-content" id="meme-tab-existing" hidden>
+        <div id="existing-memes" class="existing-grid">
+          <p class="text-muted">Loading available memes...</p>
+        </div>
+        <div id="meme-existing-error" class="dev-error" hidden></div>
+      </div>
+
+      <Fragment slot="footer">
+        <button type="button" class="dev-btn dev-btn-secondary" data-close>Cancel</button>
+        <button type="button" class="dev-btn" id="add-meme-submit" disabled>Add Meme</button>
+      </Fragment>
+    </DevModal>
+
+    <!-- Delete Confirmation Modal -->
+    <DevModal id="delete-meme-modal" title="Delete Meme">
+      <div class="delete-warning">
+        <p><strong>Are you sure you want to permanently delete this meme?</strong></p>
+        <p class="text-muted">This will remove the file from your disk. This action cannot be undone.</p>
+        <div class="delete-preview" id="meme-delete-preview">
+          <img id="meme-delete-preview-img" src="" alt="Meme to delete" />
+          <span id="meme-delete-preview-path"></span>
+        </div>
+      </div>
+
+      <Fragment slot="footer">
+        <button type="button" class="dev-btn dev-btn-secondary" data-close>Cancel</button>
+        <button type="button" class="dev-btn delete-confirm-btn" id="confirm-meme-delete">Delete Permanently</button>
+      </Fragment>
+    </DevModal>
+  </div>
+)}
+
+<style>
+  .meme-gallery-editor {
+    position: relative;
+  }
+
+  .meme-gallery {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-sm);
+  }
+
+  .meme-item {
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 8px;
+    background-color: var(--bg-secondary);
+    position: relative;
+  }
+
+  .meme-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    transition: transform 0.3s ease, filter 0.3s ease;
+  }
+
+  .meme-item:hover img {
+    transform: scale(1.05);
+  }
+
+  /* Hidden image styling */
+  .hidden-image {
+    opacity: 0.5;
+  }
+
+  .hidden-image img {
+    filter: grayscale(50%);
+  }
+
+  .hidden-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  /* Overlay controls */
+  .image-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    border-radius: 8px;
+  }
+
+  .meme-item:hover .image-overlay {
+    opacity: 1;
+  }
+
+  .overlay-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+
+  .overlay-btn:hover {
+    background: white;
+    transform: scale(1.1);
+  }
+
+  .delete-btn:hover {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+
+  .show-btn:hover {
+    background: #dcfce7;
+    color: #16a34a;
+  }
+
+  /* Drag and drop */
+  .meme-item[draggable="true"] {
+    cursor: grab;
+  }
+
+  .meme-item[draggable="true"]:active {
+    cursor: grabbing;
+  }
+
+  .meme-item.dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+  }
+
+  .meme-item.drag-over {
+    outline: 2px dashed var(--text);
+    outline-offset: -2px;
+  }
+
+  /* Add placeholder */
+  .add-placeholder {
+    border: 2px dashed var(--border);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .add-placeholder:hover {
+    border-color: var(--text);
+    background: var(--bg-secondary);
+  }
+
+  .add-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--text-muted);
+  }
+
+  .add-placeholder:hover .add-content {
+    color: var(--text);
+  }
+
+  .add-icon {
+    font-size: 2rem;
+    line-height: 1;
+  }
+
+  .add-text {
+    font-size: 0.875rem;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+  }
+
+  .tab {
+    background: none;
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+  }
+
+  .tab:hover {
+    color: var(--text);
+    background: var(--bg-secondary);
+  }
+
+  .tab.active {
+    color: var(--text);
+    background: var(--bg-secondary);
+    font-weight: 500;
+  }
+
+  .tab-content[hidden] {
+    display: none;
+  }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 1rem;
+  }
+
+  .drop-zone:hover,
+  .drop-zone.dragover {
+    border-color: var(--text);
+    background: var(--bg-secondary);
+  }
+
+  .drop-zone-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-muted);
+  }
+
+  .drop-zone-content[hidden] {
+    display: none;
+  }
+
+  .drop-icon {
+    font-size: 2rem;
+  }
+
+  .drop-text {
+    font-size: 0.875rem;
+  }
+
+  .drop-preview {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .drop-preview[hidden] {
+    display: none;
+  }
+
+  .drop-preview img {
+    max-width: 100%;
+    max-height: 180px;
+    border-radius: 6px;
+    object-fit: contain;
+  }
+
+  .remove-preview {
+    position: absolute;
+    top: -8px;
+    right: calc(50% - 100px);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    background: var(--text);
+    color: var(--bg);
+    font-size: 1rem;
+    cursor: pointer;
+    z-index: 1;
+  }
+
+  .filename-row {
+    display: flex;
+    align-items: center;
+  }
+
+  .filename-row input {
+    flex: 1;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .filename-ext {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+
+  /* Existing images grid */
+  .existing-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .existing-item {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.15s ease;
+  }
+
+  .existing-item:hover {
+    border-color: var(--text-muted);
+  }
+
+  .existing-item.selected {
+    border-color: var(--text);
+  }
+
+  .existing-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .existing-item.in-gallery {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  /* Delete confirmation */
+  .delete-warning {
+    text-align: center;
+  }
+
+  .delete-warning p {
+    margin-bottom: 0.75rem;
+  }
+
+  .delete-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+  }
+
+  .delete-preview img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 6px;
+  }
+
+  .delete-preview span {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  .delete-confirm-btn {
+    background: #dc2626 !important;
+    color: white !important;
+  }
+
+  .delete-confirm-btn:hover {
+    background: #b91c1c !important;
+  }
+
+  @media (max-width: 480px) {
+    .meme-gallery {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .existing-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+</style>
+
+<script>
+  function setupMemeGalleryEditor() {
+    const addTrigger = document.getElementById('add-meme-trigger');
+    const tabs = document.querySelectorAll('.meme-gallery-editor .tab');
+    const tabUpload = document.getElementById('meme-tab-upload');
+    const tabExisting = document.getElementById('meme-tab-existing');
+    const dropZone = document.getElementById('meme-drop-zone');
+    const fileInput = document.getElementById('meme-file-input') as HTMLInputElement;
+    const dropPreview = document.getElementById('meme-drop-preview');
+    const previewImg = document.getElementById('meme-preview-img') as HTMLImageElement;
+    const removePreviewBtn = document.getElementById('meme-remove-preview');
+    const dropZoneContent = dropZone?.querySelector('.drop-zone-content');
+    const filenameInput = document.getElementById('meme-upload-filename') as HTMLInputElement;
+    const altInput = document.getElementById('meme-upload-alt') as HTMLInputElement;
+    const uploadError = document.getElementById('meme-upload-error');
+    const existingGrid = document.getElementById('existing-memes');
+    const existingError = document.getElementById('meme-existing-error');
+    const submitBtn = document.getElementById('add-meme-submit') as HTMLButtonElement;
+
+    if (!addTrigger) return;
+
+    // ========== DRAG AND DROP REORDERING ==========
+    const galleryContainer = document.querySelector('.meme-gallery-editor .meme-gallery') as HTMLElement;
+    let draggedItem: HTMLElement | null = null;
+
+    function setupDragAndDrop() {
+      const items = galleryContainer.querySelectorAll('.meme-item[draggable="true"]');
+
+      items.forEach((item) => {
+        const el = item as HTMLElement;
+
+        el.addEventListener('dragstart', (e) => {
+          draggedItem = el;
+          el.classList.add('dragging');
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', el.dataset.index || '');
+          }
+        });
+
+        el.addEventListener('dragend', () => {
+          el.classList.remove('dragging');
+          draggedItem = null;
+          items.forEach(i => i.classList.remove('drag-over'));
+        });
+
+        el.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'move';
+          }
+          if (draggedItem && draggedItem !== el) {
+            el.classList.add('drag-over');
+          }
+        });
+
+        el.addEventListener('dragleave', () => {
+          el.classList.remove('drag-over');
+        });
+
+        el.addEventListener('drop', async (e) => {
+          e.preventDefault();
+          el.classList.remove('drag-over');
+
+          if (!draggedItem || draggedItem === el) return;
+
+          const fromIndex = parseInt(draggedItem.dataset.index || '0');
+          const toIndex = parseInt(el.dataset.index || '0');
+
+          if (fromIndex < toIndex) {
+            el.parentNode?.insertBefore(draggedItem, el.nextSibling);
+          } else {
+            el.parentNode?.insertBefore(draggedItem, el);
+          }
+
+          const allItems = galleryContainer.querySelectorAll('.meme-item[draggable="true"]');
+          allItems.forEach((item, idx) => {
+            (item as HTMLElement).dataset.index = idx.toString();
+          });
+
+          await saveNewOrder();
+        });
+      });
+    }
+
+    async function saveNewOrder() {
+      try {
+        const items = galleryContainer.querySelectorAll('.meme-item[draggable="true"]');
+        const newOrder: { src: string; alt: string; visible: boolean }[] = [];
+
+        items.forEach((item) => {
+          const el = item as HTMLElement;
+          newOrder.push({
+            src: el.dataset.src || '',
+            alt: el.dataset.alt || '',
+            visible: el.dataset.visible === 'true',
+          });
+        });
+
+        await fetch('/__dev-editor/memes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ images: newOrder }),
+        });
+      } catch (err) {
+        console.error('Failed to save new order:', err);
+      }
+    }
+
+    setupDragAndDrop();
+
+    let selectedFile: File | null = null;
+    let convertedBlob: Blob | null = null;
+    let selectedExisting: string | null = null;
+    let currentTab = 'upload';
+    let fileExtension = '.jpg';
+
+    async function convertHeicToJpeg(file: File): Promise<Blob> {
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.readAsDataURL(file);
+      });
+
+      const res = await fetch('/__dev-editor/convert-heic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: base64 }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Conversion failed');
+      }
+
+      const { data: jpegBase64 } = await res.json();
+
+      const byteString = atob(jpegBase64);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      return new Blob([ab], { type: 'image/jpeg' });
+    }
+
+    addTrigger.addEventListener('click', () => {
+      (window as any).openDevModal('add-meme-modal');
+      loadExistingMemes();
+    });
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = (tab as HTMLElement).dataset.tab!;
+        currentTab = tabName;
+
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        if (tabName === 'upload') {
+          tabUpload!.hidden = false;
+          tabExisting!.hidden = true;
+        } else {
+          tabUpload!.hidden = true;
+          tabExisting!.hidden = false;
+        }
+
+        updateSubmitButton();
+      });
+    });
+
+    dropZone?.addEventListener('click', () => fileInput?.click());
+
+    dropZone?.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone?.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone?.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      const files = e.dataTransfer?.files;
+      if (files?.length) handleFile(files[0]);
+    });
+
+    fileInput?.addEventListener('change', () => {
+      if (fileInput.files?.length) handleFile(fileInput.files[0]);
+    });
+
+    async function handleFile(file: File) {
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'];
+      const isValidType = file.type.startsWith('image/') || allowedExtensions.includes(ext);
+
+      if (!isValidType) {
+        if (uploadError) {
+          uploadError.textContent = 'Please select an image file';
+          uploadError.hidden = false;
+        }
+        return;
+      }
+
+      selectedFile = file;
+      convertedBlob = null;
+      if (uploadError) uploadError.hidden = true;
+
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+      filenameInput.value = baseName;
+
+      const isHeic = ext === 'heic' || ext === 'heif' || file.type === 'image/heic' || file.type === 'image/heif';
+
+      if (isHeic) {
+        if (dropZoneContent) {
+          (dropZoneContent as HTMLElement).innerHTML = `<span class="drop-icon">⏳</span><span class="drop-text">Converting HEIC...</span>`;
+          (dropZoneContent as HTMLElement).hidden = false;
+        }
+        if (dropPreview) dropPreview.hidden = true;
+
+        try {
+          convertedBlob = await convertHeicToJpeg(file);
+          fileExtension = '.jpg';
+
+          const url = URL.createObjectURL(convertedBlob!);
+          previewImg.src = url;
+          if (dropPreview) dropPreview.hidden = false;
+          if (dropZoneContent) (dropZoneContent as HTMLElement).hidden = true;
+        } catch (err: any) {
+          console.error('HEIC conversion failed:', err);
+          if (uploadError) {
+            const errorMsg = err?.message || 'Unknown error';
+            uploadError.textContent = `HEIC conversion failed: ${errorMsg}`;
+            uploadError.hidden = false;
+          }
+          selectedFile = null;
+          if (dropZoneContent) {
+            (dropZoneContent as HTMLElement).innerHTML = `<span class="drop-icon">📷</span><span class="drop-text">Drop meme here or click to browse</span>`;
+          }
+          updateSubmitButton();
+          return;
+        }
+      } else {
+        fileExtension = '.' + ext;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          if (result) {
+            previewImg.src = result;
+            previewImg.onload = () => {
+              if (dropPreview) dropPreview.hidden = false;
+              if (dropZoneContent) (dropZoneContent as HTMLElement).hidden = true;
+            };
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+
+      const extSpan = document.querySelector('.meme-gallery-editor .filename-ext');
+      if (extSpan) extSpan.textContent = fileExtension;
+
+      updateSubmitButton();
+    }
+
+    removePreviewBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectedFile = null;
+      convertedBlob = null;
+      if (dropPreview) dropPreview.hidden = true;
+      if (dropZoneContent) {
+        (dropZoneContent as HTMLElement).innerHTML = `<span class="drop-icon">📷</span><span class="drop-text">Drop meme here or click to browse</span>`;
+        (dropZoneContent as HTMLElement).hidden = false;
+      }
+      fileInput.value = '';
+      filenameInput.value = '';
+      updateSubmitButton();
+    });
+
+    async function loadExistingMemes() {
+      try {
+        const [listRes, configRes] = await Promise.all([
+          fetch('/__dev-editor/list-memes'),
+          fetch('/__dev-editor/memes')
+        ]);
+
+        const listData = await listRes.json();
+        const configData = await configRes.json();
+
+        const inGallery = new Set(configData.images.map((img: any) => img.src));
+
+        if (existingGrid) {
+          if (listData.images.length === 0) {
+            existingGrid.innerHTML = '<p class="text-muted">No memes in /memes/ folder</p>';
+          } else {
+            existingGrid.innerHTML = listData.images.map((img: any) => `
+              <div class="existing-item ${inGallery.has(img.path) ? 'in-gallery' : ''}"
+                   data-path="${img.path}"
+                   title="${inGallery.has(img.path) ? 'Already in gallery' : img.filename}">
+                <img src="${img.path}" alt="${img.filename}" loading="lazy" />
+              </div>
+            `).join('');
+
+            existingGrid.querySelectorAll('.existing-item:not(.in-gallery)').forEach(item => {
+              item.addEventListener('click', () => {
+                existingGrid.querySelectorAll('.existing-item').forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+                selectedExisting = (item as HTMLElement).dataset.path!;
+                updateSubmitButton();
+              });
+            });
+          }
+        }
+      } catch (err) {
+        if (existingError) {
+          existingError.textContent = 'Failed to load memes';
+          existingError.hidden = false;
+        }
+      }
+    }
+
+    function updateSubmitButton() {
+      if (currentTab === 'upload') {
+        submitBtn.disabled = !selectedFile || !filenameInput.value.trim();
+      } else {
+        submitBtn.disabled = !selectedExisting;
+      }
+    }
+
+    filenameInput?.addEventListener('input', updateSubmitButton);
+
+    submitBtn?.addEventListener('click', async () => {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Adding...';
+
+      try {
+        if (currentTab === 'upload' && selectedFile) {
+          const filename = filenameInput.value.trim() + fileExtension;
+          const alt = altInput.value.trim() || filename;
+
+          const blobToUpload = convertedBlob || selectedFile;
+
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve((reader.result as string).split(',')[1]);
+            reader.readAsDataURL(blobToUpload);
+          });
+
+          const uploadRes = await fetch('/__dev-editor/upload-meme', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename, data: base64 }),
+          });
+
+          if (!uploadRes.ok) {
+            const err = await uploadRes.json();
+            throw new Error(err.error || 'Upload failed');
+          }
+
+          const { path } = await uploadRes.json();
+
+          await addToMemes(path, alt);
+        } else if (currentTab === 'existing' && selectedExisting) {
+          const filename = selectedExisting.split('/').pop() || 'Meme';
+          await addToMemes(selectedExisting, filename);
+        }
+
+        window.location.reload();
+      } catch (err) {
+        if (uploadError) {
+          uploadError.textContent = err instanceof Error ? err.message : 'An error occurred';
+          uploadError.hidden = false;
+        }
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add Meme';
+      }
+    });
+
+    async function addToMemes(src: string, alt: string) {
+      const configRes = await fetch('/__dev-editor/memes');
+      const config = await configRes.json();
+
+      config.images.push({ src, alt, visible: true });
+
+      const saveRes = await fetch('/__dev-editor/memes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+
+      if (!saveRes.ok) {
+        const err = await saveRes.json();
+        throw new Error(err.error || 'Failed to update memes');
+      }
+    }
+
+    // Hide/Show handlers
+    document.querySelectorAll('.meme-gallery-editor .hide-btn, .meme-gallery-editor .show-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const item = (btn as HTMLElement).closest('.meme-item');
+        const src = (item as HTMLElement).dataset.src;
+        const currentVisible = (item as HTMLElement).dataset.visible === 'true';
+
+        try {
+          const configRes = await fetch('/__dev-editor/memes');
+          const config = await configRes.json();
+
+          const imgIndex = config.images.findIndex((img: any) => img.src === src);
+          if (imgIndex !== -1) {
+            config.images[imgIndex].visible = !currentVisible;
+
+            await fetch('/__dev-editor/memes', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(config),
+            });
+
+            window.location.reload();
+          }
+        } catch (err) {
+          console.error('Failed to toggle visibility:', err);
+        }
+      });
+    });
+
+    // Delete handlers
+    let deleteTarget: string | null = null;
+
+    document.querySelectorAll('.meme-gallery-editor .delete-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const item = (btn as HTMLElement).closest('.meme-item');
+        const src = (item as HTMLElement).dataset.src!;
+
+        deleteTarget = src;
+        const previewImg = document.getElementById('meme-delete-preview-img') as HTMLImageElement;
+        const previewPath = document.getElementById('meme-delete-preview-path');
+
+        previewImg.src = src;
+        if (previewPath) previewPath.textContent = src;
+
+        (window as any).openDevModal('delete-meme-modal');
+      });
+    });
+
+    document.getElementById('confirm-meme-delete')?.addEventListener('click', async () => {
+      if (!deleteTarget) return;
+
+      const btn = document.getElementById('confirm-meme-delete') as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = 'Deleting...';
+
+      try {
+        const configRes = await fetch('/__dev-editor/memes');
+        const config = await configRes.json();
+
+        config.images = config.images.filter((img: any) => img.src !== deleteTarget);
+
+        await fetch('/__dev-editor/memes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config),
+        });
+
+        const deleteRes = await fetch('/__dev-editor/delete-meme', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: deleteTarget }),
+        });
+
+        if (!deleteRes.ok) {
+          const err = await deleteRes.json();
+          throw new Error(err.error || 'Delete failed');
+        }
+
+        window.location.reload();
+      } catch (err) {
+        console.error('Failed to delete:', err);
+        btn.disabled = false;
+        btn.textContent = 'Delete Permanently';
+      }
+    });
+  }
+
+  setupMemeGalleryEditor();
+  document.addEventListener('astro:after-swap', setupMemeGalleryEditor);
+</script>

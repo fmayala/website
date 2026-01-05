@@ -1,0 +1,86 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import type { CollectionEntry } from 'astro:content';
+
+type Props = {
+  frontmatter: {
+    title: string;
+    description: string;
+    pubDate: Date;
+    tags?: string[];
+  };
+} | CollectionEntry<'blog'> | CollectionEntry<'books'>;
+
+const props = Astro.props;
+
+// Handle both frontmatter from markdown and collection entry data
+const frontmatter = 'frontmatter' in props ? props.frontmatter : props.data;
+const { title, description } = frontmatter;
+
+// Format date
+const pubDate = 'pubDate' in frontmatter
+  ? frontmatter.pubDate
+  : 'dateRead' in frontmatter
+    ? frontmatter.dateRead
+    : new Date();
+
+const formattedDate = new Date(pubDate).toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+---
+
+<BaseLayout title={title} description={description}>
+  <article class="post">
+    <header class="post-header">
+      <h1>{title}</h1>
+      <p class="post-meta text-muted text-sm">
+        <time datetime={new Date(pubDate).toISOString()}>{formattedDate}</time>
+      </p>
+    </header>
+    <div class="post-content">
+      <slot />
+    </div>
+  </article>
+</BaseLayout>
+
+<style>
+  .post {
+    margin-bottom: var(--space-xl);
+  }
+
+  .post-header {
+    margin-bottom: var(--space-xl);
+  }
+
+  .post-header h1 {
+    margin-bottom: var(--space-sm);
+  }
+
+  .post-content {
+    line-height: 1.75;
+  }
+
+  .post-content :global(h2) {
+    margin-top: var(--space-xl);
+    margin-bottom: var(--space-md);
+  }
+
+  .post-content :global(h3) {
+    margin-top: var(--space-lg);
+    margin-bottom: var(--space-sm);
+  }
+
+  .post-content :global(p) {
+    margin-bottom: var(--space-md);
+  }
+
+  .post-content :global(a) {
+    text-decoration-thickness: 1px;
+  }
+
+  .post-content :global(img) {
+    margin: var(--space-lg) 0;
+  }
+</style>
