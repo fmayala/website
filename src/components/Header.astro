@@ -18,7 +18,7 @@ const currentPath = Astro.url.pathname;
     <a href="/" class="site-title">francisco ayala</a>
 
     <div class="nav-right">
-      <ul class="nav-links">
+      <ul class="nav-links desktop-nav">
         {navItems.map(item => (
           <li>
             <a
@@ -35,9 +35,86 @@ const currentPath = Astro.url.pathname;
         ))}
       </ul>
       <ThemeToggle />
+      <button class="menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+        <span class="hamburger"></span>
+      </button>
     </div>
   </nav>
+
+  <!-- Mobile drawer -->
+  <div class="drawer-overlay"></div>
+  <div class="drawer">
+    <ul class="drawer-nav">
+      {navItems.map(item => (
+        <li>
+          <a
+            href={item.href}
+            class:list={[
+              'drawer-link',
+              { active: !item.external && currentPath.startsWith(item.href) },
+              { 'drawer-action': item.isAction }
+            ]}
+            {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+          >
+            {item.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
 </header>
+
+<script>
+  function initMobileMenu() {
+    const menuToggle = document.querySelector('.menu-toggle');
+    const drawer = document.querySelector('.drawer');
+    const drawerOverlay = document.querySelector('.drawer-overlay');
+    const drawerLinks = document.querySelectorAll('.drawer-nav a');
+
+    function openDrawer() {
+      drawer?.classList.add('open');
+      drawerOverlay?.classList.add('open');
+      menuToggle?.classList.add('active');
+      menuToggle?.setAttribute('aria-expanded', 'true');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeDrawer() {
+      drawer?.classList.remove('open');
+      drawerOverlay?.classList.remove('open');
+      menuToggle?.classList.remove('active');
+      menuToggle?.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+    }
+
+    function toggleDrawer() {
+      if (drawer?.classList.contains('open')) {
+        closeDrawer();
+      } else {
+        openDrawer();
+      }
+    }
+
+    menuToggle?.addEventListener('click', toggleDrawer);
+    drawerOverlay?.addEventListener('click', closeDrawer);
+
+    // Close drawer when clicking a link
+    drawerLinks.forEach(link => {
+      link.addEventListener('click', closeDrawer);
+    });
+
+    // Close on escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDrawer();
+    });
+  }
+
+  // Initialize on page load
+  initMobileMenu();
+
+  // Re-initialize after view transitions
+  document.addEventListener('astro:after-swap', initMobileMenu);
+</script>
 
 <style>
   .header {
@@ -94,13 +171,165 @@ const currentPath = Astro.url.pathname;
     background: var(--border);
   }
 
-  @media (max-width: 480px) {
-    .nav-links {
-      gap: var(--space-sm);
+  /* Hamburger menu */
+  .menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    z-index: 1001;
+    -webkit-tap-highlight-color: transparent;
+    tap-highlight-color: transparent;
+  }
+
+  .hamburger {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: var(--text);
+    position: relative;
+    transition: background 0.3s ease;
+  }
+
+  .hamburger::before,
+  .hamburger::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 2px;
+    background: var(--text);
+    transition: transform 0.3s ease;
+  }
+
+  .hamburger::before {
+    top: -7px;
+  }
+
+  .hamburger::after {
+    bottom: -7px;
+  }
+
+  /* Transform to X when active */
+  .menu-toggle.active .hamburger {
+    background: transparent;
+  }
+
+  .menu-toggle.active .hamburger::before {
+    transform: rotate(45deg);
+    top: 0;
+  }
+
+  .menu-toggle.active .hamburger::after {
+    transform: rotate(-45deg);
+    bottom: 0;
+  }
+
+  /* Drawer overlay */
+  .drawer-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .drawer-overlay.open {
+    display: block;
+    opacity: 1;
+  }
+
+  /* Drawer */
+  .drawer {
+    position: fixed;
+    top: 0;
+    right: -300px;
+    width: 300px;
+    height: 100%;
+    background: var(--bg);
+    z-index: 1000;
+    transition: right 0.3s ease;
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .drawer.open {
+    right: 0;
+  }
+
+  .drawer-nav {
+    list-style: none;
+    padding: var(--space-lg) 0 0 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .drawer-nav li {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .drawer-link {
+    display: block;
+    padding: var(--space-md) var(--space-lg);
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 1rem;
+    transition: all 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    tap-highlight-color: transparent;
+  }
+
+  .drawer-link:hover,
+  .drawer-link.active {
+    color: var(--text);
+    background: var(--bg-secondary);
+  }
+
+  .drawer-action {
+    color: var(--text) !important;
+    font-weight: 500;
+    background: var(--bg-secondary);
+    margin: var(--space-lg);
+    padding: var(--space-md) var(--space-lg) !important;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .drawer-action:hover {
+    background: var(--border);
+  }
+
+  .drawer-nav li:has(.drawer-action) {
+    border-bottom: none;
+  }
+
+  /* Mobile styles */
+  @media (max-width: 768px) {
+    .desktop-nav {
+      display: none;
+    }
+
+    .menu-toggle {
+      display: block;
     }
 
     .nav-right {
       gap: var(--space-md);
+    }
+  }
+
+  @media (min-width: 769px) {
+    .drawer,
+    .drawer-overlay {
+      display: none !important;
     }
   }
 </style>
